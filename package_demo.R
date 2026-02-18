@@ -156,20 +156,12 @@ pref25_hd <- dop_transform(
 tern_hd <- ternable(pref25_hd, ALP:IND)
 
 # Detour
-# party_colors <- c(
-#   "ALP" = "#E13940",    # Red
-#   "LNP" = "#1C4F9C",    # Blue
-#   "GRN" = "#10C25B",    # Green
-#   "IND" = "#F39C12",    # Orange
-#   "Other" = "#95A5A6"   # Gray
-# )
-
 party_colors <- c(
-  "ALP" = "red",
-  "LNP" = "blue",
-  "GRN" = "green",
-  "IND" = "orange",
-  "Other" = "grey70"
+  "ALP" = "#E13940",    # Red
+  "LNP" = "#1C4F9C",    # Blue
+  "GRN" = "#10C25B",    # Green
+  "IND" = "#F39C12",    # Orange
+  "Other" = "#95A5A6"   # Gray
 )
 
 col_first_pref <- c(rep("black", 5),
@@ -237,7 +229,10 @@ p_elec_map <- ggplot() +
     aes(x = long, y = lat, color = Winner, text = text),
     size = 1, alpha = 0.8
   ) +
-  scale_color_manual(values = party_colors, name = "Elected Party") +
+  scale_color_manual(
+    values = c("ALP" = "red", "LNP" = "blue", "Other" = "grey70"),
+    name = "Elected Party"
+  ) +
   coord_equal() +
   theme_map()
 

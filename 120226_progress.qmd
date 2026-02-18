@@ -6,6 +6,7 @@ format:
     embed-resources: true
     theme: default
     slide-number: true
+    scrollable: true
     fontsize: 28px
     title-slide-attributes:
       data-state: "hide-menubar"
