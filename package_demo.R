@@ -4,6 +4,13 @@ library(ggplot2)
 library(tourr)
 library(detourr)
 library(ggiraph)
+library(crosstalk)
+library(ggthemes)
+library(plotly)
+
+# Map data 
+elb_df <- read_csv(here::here("data/elb_map.csv"))
+elb_centroid <- read_csv(here::here("data/elb_centroid.csv"))
 
 #### 2D
 
@@ -39,7 +46,17 @@ input_data <- get_tern_data(tern_2d, plot_type = "2D") |>
         DivisionNm = gsub("'", "", DivisionNm)
       )
 
-p2d <- ggplot(input_data |> filter(CountNumber == 0), aes(x = x1, y = x2)) +
+input_p2d_base <- input_data |> 
+  filter(CountNumber == 0) |> 
+  left_join(
+    elb_centroid[, c("long", "lat", "elect_div")], 
+    by = c("DivisionNm" = "elect_div"))
+
+shared_data <- SharedData$new(
+  input_p2d_base, 
+  key = ~DivisionNm)
+
+p2d_base <- ggplot(shared_data, aes(x = x1, y = x2)) +
   geom_ternary_cart() + 
   geom_ternary_region(
     x1 = 1/3, x2 = 1/3, x3 = 1/3,
@@ -48,7 +65,6 @@ p2d <- ggplot(input_data |> filter(CountNumber == 0), aes(x = x1, y = x2)) +
     alpha = 0.3, color = NA, show.legend = FALSE
   ) +
   add_vertex_labels(tern_2d$simplex_vertices) + 
-  geom_point_interactive(aes(color = Winner, tooltip = text, data_id = DivisionNm)) + 
   scale_fill_manual(
     values = c("ALP" = "red", "LNP" = "blue", "Other" = "grey70")
   ) +
@@ -57,20 +73,28 @@ p2d <- ggplot(input_data |> filter(CountNumber == 0), aes(x = x1, y = x2)) +
     name = "Elected Party"
   )
 
+p2d <- p2d_base + 
+  geom_point_interactive(
+    aes(color = Winner, tooltip = text, data_id = DivisionNm))
+
 p2d_interactive <- girafe(
   ggobj = p2d,
   options = list(
     opts_hover(css = "fill-opacity:1;stroke:black;stroke-width:2;"),
     opts_hover_inv(css = "opacity:0.3;"),
     opts_tooltip(
-      css = "background-color:white;padding:8px;border-radius:5px;box-shadow:2px 2px 5px rgba(0,0,0,0.3);font-size:12px;"
+      css = "background-color:white;padding:8px;border-radius:5px;box-shadow:2px 2px 5px rgba(0,0,0,0.3);font-size:20px;"
     )
   )
 )
 
 # Line
 line_input <- input_data |> 
-  filter(DivisionNm %in% c("Higgins", "Monash", "Melbourne"))
+  filter(DivisionNm %in% c("Higgins", "Monash", "Melbourne")) |> 
+  mutate(text = paste0(
+    "Round:", CountNumber, "\n",
+    text
+  ))
 
 # The base plot
 p2d_line <- ggplot(line_input, aes(x = x1, y = x2)) +
@@ -105,7 +129,7 @@ p2d_line_interactive <- girafe(
     opts_hover(css = "fill-opacity:1;stroke:black;stroke-width:2;"),
     opts_hover_inv(css = "opacity:0.3;"),
     opts_tooltip(
-      css = "background-color:white;padding:8px;border-radius:5px;box-shadow:2px 2px 5px rgba(0,0,0,0.3);font-size:12px;"
+      css = "background-color:white;padding:8px;border-radius:5px;box-shadow:2px 2px 5px rgba(0,0,0,0.3);font-size:20px;"
     )
   )
 )
@@ -132,12 +156,20 @@ pref25_hd <- dop_transform(
 tern_hd <- ternable(pref25_hd, ALP:IND)
 
 # Detour
+# party_colors <- c(
+#   "ALP" = "#E13940",    # Red
+#   "LNP" = "#1C4F9C",    # Blue
+#   "GRN" = "#10C25B",    # Green
+#   "IND" = "#F39C12",    # Orange
+#   "Other" = "#95A5A6"   # Gray
+# )
+
 party_colors <- c(
-  "ALP" = "#E13940",    # Red
-  "LNP" = "#1C4F9C",    # Blue
-  "GRN" = "#10C25B",    # Green
-  "IND" = "#F39C12",    # Orange
-  "Other" = "#95A5A6"   # Gray
+  "ALP" = "red",
+  "LNP" = "blue",
+  "GRN" = "green",
+  "IND" = "orange",
+  "Other" = "grey70"
 )
 
 col_first_pref <- c(rep("black", 5),
@@ -171,3 +203,54 @@ de <- detour(
     size = 1.5
   )
 de
+
+### Linked map
+p2d_linked <- p2d_base +
+  geom_point(aes(color = Winner, text = text)) +
+  theme(legend.position = "none")
+
+plotly_ternary <- ggplotly(p2d_linked, tooltip = "text") |> 
+  highlight(
+    on = "plotly_selected",
+    off = "plotly_deselect",
+    opacityDim = 0.3
+  ) |> 
+  layout(
+    title = list(
+      text = "First preference by electorate (2025)",
+      font = list(size = 16) 
+    ),
+    xaxis = list(showgrid = FALSE, zeroline = FALSE, showline = FALSE),
+    yaxis = list(showgrid = FALSE, zeroline = FALSE, showline = FALSE)
+  ) |> 
+  style(hoverinfo = "skip", traces = 2)
+
+## Electorate map
+p_elec_map <- ggplot() +
+  geom_polygon(
+    data = elb_df,
+    aes(x = long, y = lat, group = group),
+    fill = "grey90", color = "white"
+  ) +
+  geom_point(
+    data = shared_data,
+    aes(x = long, y = lat, color = Winner, text = text),
+    size = 1, alpha = 0.8
+  ) +
+  scale_color_manual(values = party_colors, name = "Elected Party") +
+  coord_equal() +
+  theme_map()
+
+plotly_map <- ggplotly(p_elec_map, tooltip = "text") |> 
+  highlight(
+    on = "plotly_selected",
+    off = "plotly_deselect",
+    opacityDim = 0.3
+  ) |> 
+  layout(
+    title = list(
+      text = "Result by electorate (2025)",
+      font = list(size = 16)  # Same size
+    )
+  ) |> 
+  style(hoverinfo = "skip", traces = 1)

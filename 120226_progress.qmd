@@ -93,51 +93,57 @@ library(kableExtra)
 
 ## We make 2D ternary plot interactive...
 
-:::: {.columns}
-
-::: {.column width="50%"}
-
 **First Preference Distribution**
 
 Hover to see electorate names and exact vote percentages.
-```{r}
+```{r p2d_interactive}
 #| echo: false
 
 p2d_interactive
 ```
 
-:::
-
-::: {.column width="50%"}
+## We make 2D ternary plot interactive...
 
 **Full Preference Flow**
 
 Track how votes move between parties as candidates are eliminated.
-```{r}
+```{r p2d_line_interactive}
 #| echo: false
 
 p2d_line_interactive
 ```
 
-:::
+## We make 2D ternary plot interactive...
 
-::::
+**Explore with map of electorate**
+
+Link the ternary plot with a map of electorates. Selecting a point in the ternary plot highlights the corresponding electorate on the map, and vice versa.
+
+```{r linked_map}
+#| echo: false
+
+bscols(
+  widths = c(4, 8),
+  plotly_ternary,
+  plotly_map
+)
+```
 
 ## And we make interactive high-dimensional ternary plot
 
 For elections with 4+ significant parties, we integrate with **`tourr`** and **`detourr`** for dynamic rotations through preference space.
 
-```{r}
+```{r detourr}
 #| echo: false
 de
 ```
 
 # Overview of `prefviz` functions
 
-| **Step** | **Data Transformation** | **Extract Ternary Components** | **Visualization** |
+| **Step** | **Data Transformation** | **Construct Ternary Components** | **Visualization** |
 |:--------:|:----------------------:|:------------------------------:|:-----------------:|
 | **What it does** | Convert raw ballot data to aggregated compositional percentages | Build geometric infrastructure (vertices, edges, coordinates) | Interactive 2D or high-dimensional plots |
-| **Key functions** | `dop_irv()` – for raw ballot data<br/>`dop_transform()` – reshape aggregated data | `ternable()` – create `ternable`object<br/>Getter functions for transforming components to appropriate shapes | `ggplot2` + `plotly` (2D)<br/>`tourr` + `detourr` (high-D) |
+| **Key functions** | `dop_irv()` – for raw ballot data<br/>`dop_transform()` – reshape aggregated data | `ternable()` – create `ternable` object<br/>`get_tern_*()` - Getter functions for transforming components to appropriate shapes | `ggplot2` + `plotly` (2D)<br/>`tourr` + `detourr` (high-D) |
 | **Input** | Raw ballots or aggregated preferences | Standardized compositional data | Ternary components from `ternable` object |
 | **Output** | Clean, standardized format | Geometric objects ready to plot | Interactive, explorable visualization |
 
@@ -145,14 +151,13 @@ de
 
 ## Step 1: Transformation from raw to compositional data
 
-:::: {.columns}
+Raw data is from AEC's 2025 House of Representatives distribution of preferences. 
 
-::: {.column width="50%"}
-AEC's 2025 House of Representatives distribution of preferences is in aggregated percentage, with each row representing the preference of a party in an electorate.
+Instead of raw ballot data, AEC provides aggregated percentage, with each row representing the preference for a party in a round of voting (`CountNumber`), at a specific electorate (`DivisionNm`). 
 
-```{r}
+```{r pref25_2d}
 #| echo: true
-#| code-fold: false
+#| code-fold: true
 pref25_2d <- aecdop_2025 |> 
   filter(CalculationType == "Preference Percent") |>
   mutate(Party = case_when(
@@ -160,15 +165,14 @@ pref25_2d <- aecdop_2025 |>
     PartyAb %in% c("LP", "NP", "LNP", "LNQ") ~ "LNP",
     TRUE ~ PartyAb
   ))
-head(pref25_2d)
+print(head(pref25_2d, 5), width = Inf)
 ```
 
-:::
+## Step 1: Transformation from raw to compositional data
 
-::: {.column width="50%"}
 Transformed data with 3 columns representing the composition of each party in each electorate, summing to 1.
 
-```{r}
+```{r step1}
 #| echo: true
 #| code-fold: false
 pref25_2d <- dop_transform(
@@ -182,10 +186,6 @@ pref25_2d <- dop_transform(
 pref25_2d
 ```
 
-:::
-
-::::
-
 ## Step 2: Get components of ternary plots
 
 `ternable()` creates a `ternable` object, which is a S3 object that contains the data and metadata necessary for ternary plots, including the vertices, edges, labels of the simplex, and coordinates of all data points. 
@@ -194,7 +194,7 @@ pref25_2d
 
 ::: {.column width="50%"}
 
-```{r}
+```{r step2}
 #| echo: true
 #| code-fold: false
 tern_2d <- ternable(pref25_2d, items = ALP:Other)
@@ -205,7 +205,7 @@ tern_2d
 
 ::: {.column width="50%"}
 
-```{r}
+```{r step2-2}
 #| echo: true
 #| code-fold: false
 str(tern_2d)
@@ -222,7 +222,7 @@ str(tern_2d)
 :::: {.columns}
 
 ::: {.column width="50%"}
-```{r}
+```{r step3}
 #| echo: true
 #| output: false
 #| code-fold: false
@@ -258,7 +258,7 @@ plotly_ternary <- ggplotly(p2d, tooltip = "text", width = 600, height = 400)
 
 ::: {.column width="50%"}
 
-```{r}
+```{r step3-2}
 #| echo: false
 plotly_ternary
 ```
@@ -274,7 +274,7 @@ plotly_ternary
 
 ::: {.column width="60%"}
 
-```{r}
+```{r step3-3}
 #| eval: false
 #| echo: true
 #| code-fold: false
@@ -317,9 +317,9 @@ animate_xy(
 
 **Potential avenues**
 
-- Extend the application of ternary plots. The primary focus is on distribution of preferences under instant-runoff voting,but the simplex space has potential to show the margin of victory, or compare results of different electoral systems.
+- Extend the application of ternary plots. The primary focus is on distribution of preferences under IRV, but the simplex space has potential to show the margin of victory, or compare results of different electoral systems.
 - Make the package more user-friendly. Customization options are limited, especially for `detourr` integration.
-- Run elections under different voting systems. The transformation functions are currently limmited to IRV. 
+- Run elections under different voting systems. The transformation functions are currently limited to IRV. 
 
 :::
 
