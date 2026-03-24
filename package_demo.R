@@ -8,17 +8,17 @@ library(crosstalk)
 library(ggthemes)
 library(plotly)
 
-# Map data 
+# Map data
 elb_df <- read_csv(here::here("data/elb_map.csv"))
 elb_centroid <- read_csv(here::here("data/elb_centroid.csv"))
 
 #### 2D
 
 # 3 parts raw
-pref25_2d <- aecdop_2025 |> 
+pref25_2d <- aecdop_2025 |>
   filter(CalculationType == "Preference Percent") |>
   mutate(Party = case_when(
-    !(PartyAb %in% c("LP", "ALP", "NP", "LNP", "LNQ")) ~ "Other", 
+    !(PartyAb %in% c("LP", "ALP", "NP", "LNP", "LNQ")) ~ "Other",
     PartyAb %in% c("LP", "NP", "LNP", "LNQ") ~ "LNP",
     TRUE ~ PartyAb
   ))
@@ -34,10 +34,10 @@ pref25_2d <- dop_transform(
 )
 
 # Ternable
-tern_2d <- ternable(pref25_2d, items = ALP:Other)
+tern_2d <- as_ternable(pref25_2d, items = ALP:Other)
 
 # Plot
-input_data <- get_tern_data(tern_2d, plot_type = "2D") |> 
+input_data <- get_tern_data(tern_2d, plot_type = "2D") |>
   mutate(text = paste0(DivisionNm, "\n",
                 "ALP: ", round(ALP*100, 1), "%\n",
                 "LNP: ", round(LNP*100, 1), "%\n",
@@ -46,34 +46,35 @@ input_data <- get_tern_data(tern_2d, plot_type = "2D") |>
         DivisionNm = gsub("'", "", DivisionNm)
       )
 
-input_p2d_base <- input_data |> 
-  filter(CountNumber == 0) |> 
+input_p2d_base <- input_data |>
+  filter(CountNumber == 0) |>
   left_join(
-    elb_centroid[, c("long", "lat", "elect_div")], 
+    elb_centroid[, c("long", "lat", "elect_div")],
     by = c("DivisionNm" = "elect_div"))
 
 shared_data <- SharedData$new(
-  input_p2d_base, 
+  input_p2d_base,
   key = ~DivisionNm)
 
 p2d_base <- ggplot(shared_data, aes(x = x1, y = x2)) +
-  geom_ternary_cart() + 
+  add_ternary_base() +
   geom_ternary_region(
     x1 = 1/3, x2 = 1/3, x3 = 1/3,
-    aes(fill = after_stat(vertex_labels)), 
+    aes(fill = after_stat(vertex_labels)),
     vertex_labels = tern_2d$vertex_labels,
     alpha = 0.3, color = NA, show.legend = FALSE
   ) +
-  add_vertex_labels(tern_2d$simplex_vertices) + 
+  add_vertex_labels(tern_2d$simplex_vertices) +
   scale_fill_manual(
     values = c("ALP" = "red", "LNP" = "blue", "Other" = "grey70")
   ) +
   scale_color_manual(
     values = c("ALP" = "red", "LNP" = "blue", "Other" = "grey70"),
     name = "Elected Party"
-  )
+  ) +
+  labs(title = "First preference in 2025 Australian Federal election")
 
-p2d <- p2d_base + 
+p2d <- p2d_base +
   geom_point_interactive(
     aes(color = Winner, tooltip = text, data_id = DivisionNm))
 
@@ -89,8 +90,8 @@ p2d_interactive <- girafe(
 )
 
 # Line
-line_input <- input_data |> 
-  filter(DivisionNm %in% c("Higgins", "Monash", "Melbourne")) |> 
+line_input <- input_data |>
+  filter(DivisionNm %in% c("Higgins", "Monash", "Melbourne")) |>
   mutate(text = paste0(
     "Round:", CountNumber, "\n",
     text
@@ -98,7 +99,7 @@ line_input <- input_data |>
 
 # The base plot
 p2d_line <- ggplot(line_input, aes(x = x1, y = x2)) +
-  geom_ternary_cart() +
+  add_ternary_base() +
   geom_ternary_region(
     aes(fill = after_stat(vertex_labels)),
     vertex_labels = tern_2d$vertex_labels,
@@ -106,12 +107,12 @@ p2d_line <- ggplot(line_input, aes(x = x1, y = x2)) +
     show.legend = FALSE
   ) +
   geom_point_interactive(
-    aes(color = Winner, 
-        tooltip = text, 
+    aes(color = Winner,
+        tooltip = text,
         data_id = DivisionNm)
-  ) + 
+  ) +
   stat_ordered_path(
-    aes(group = DivisionNm, order_by = CountNumber, color = Winner), 
+    aes(group = DivisionNm, order_by = CountNumber, color = Winner),
     size = 0.5
   ) +
   add_vertex_labels(tern_2d$simplex_vertices) +
@@ -135,10 +136,10 @@ p2d_line_interactive <- girafe(
 )
 
 # 5 parts raw
-pref25_hd <- aecdop_2025 |> 
+pref25_hd <- aecdop_2025 |>
   filter(CalculationType == "Preference Percent", CountNumber == 0) |>
   mutate(Party = case_when(
-    !(PartyAb %in% c("LP", "ALP", "NP", "LNP", "LNQ", "GRN", "IND")) ~ "Other", 
+    !(PartyAb %in% c("LP", "ALP", "NP", "LNP", "LNQ", "GRN", "IND")) ~ "Other",
     PartyAb %in% c("LP", "NP", "LNP", "LNQ") ~ "LNP",
     TRUE ~ PartyAb
   ))
@@ -153,7 +154,7 @@ pref25_hd <- dop_transform(
 )
 
 # Ternable
-tern_hd <- ternable(pref25_hd, ALP:IND)
+tern_hd <- as_ternable(pref25_hd, ALP:IND)
 
 # Detour
 party_colors <- c(
@@ -168,11 +169,11 @@ col_first_pref <- c(rep("black", 5),
   party_colors[pref25_hd$Winner])
 
 dtour_data <- tern_hd$simplex_vertices |>
-  mutate(Winner = labels) |> 
+  mutate(Winner = labels) |>
   mutate(Winner = factor(Winner, levels = c("ALP", "LNP", "GRN", "IND", "Other"))) |>
-  bind_rows(get_tern_data(tern_hd, plot_type = "2D")) |> 
+  bind_rows(get_tern_data(tern_hd, plot_type = "2D")) |>
   mutate(text = if_else(
-    is.na(labels), 
+    is.na(labels),
     paste0(DivisionNm, "\n",
           "Elected Party: ", Winner, "\n",
           "ALP: ", round(ALP*100, 1), "%\n",
@@ -186,10 +187,10 @@ dtour_data <- tern_hd$simplex_vertices |>
 de <- detour(
   dtour_data,
   tour_aes(projection = x1:x4, colour = Winner, label = text)
-) |> 
+) |>
   tour_path(grand_tour(3), fps = 60) |>
   show_scatter(
-    axes = FALSE, 
+    axes = FALSE,
     palette = party_colors,
     edges = get_tern_edges(tern_hd),
     size = 1.5
@@ -201,20 +202,20 @@ p2d_linked <- p2d_base +
   geom_point(aes(color = Winner, text = text)) +
   theme(legend.position = "none")
 
-plotly_ternary <- ggplotly(p2d_linked, tooltip = "text") |> 
+plotly_ternary <- ggplotly(p2d_linked, tooltip = "text") |>
   highlight(
     on = "plotly_selected",
     off = "plotly_deselect",
     opacityDim = 0.3
-  ) |> 
+  ) |>
   layout(
     title = list(
       text = "First preference by electorate (2025)",
-      font = list(size = 16) 
+      font = list(size = 16)
     ),
     xaxis = list(showgrid = FALSE, zeroline = FALSE, showline = FALSE),
     yaxis = list(showgrid = FALSE, zeroline = FALSE, showline = FALSE)
-  ) |> 
+  ) |>
   style(hoverinfo = "skip", traces = 2)
 
 ## Electorate map
@@ -236,16 +237,16 @@ p_elec_map <- ggplot() +
   coord_equal() +
   theme_map()
 
-plotly_map <- ggplotly(p_elec_map, tooltip = "text") |> 
+plotly_map <- ggplotly(p_elec_map, tooltip = "text") |>
   highlight(
     on = "plotly_selected",
     off = "plotly_deselect",
     opacityDim = 0.3
-  ) |> 
+  ) |>
   layout(
     title = list(
       text = "Result by electorate (2025)",
       font = list(size = 16)  # Same size
     )
-  ) |> 
+  ) |>
   style(hoverinfo = "skip", traces = 1)

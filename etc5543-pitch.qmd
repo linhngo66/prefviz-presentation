@@ -1,0 +1,319 @@
+---
+title: "prefviz"
+subtitle: "Visualize preferential data using ternary plots in 2D and higher dimensions"
+format: 
+  revealjs:
+    embed-resources: true
+    theme: default
+    slide-number: true
+    scrollable: true
+    fontsize: 28px
+    title-slide-attributes:
+      data-state: "hide-menubar"
+execute:
+  echo: true
+  warning: false
+  message: false
+  eval: true
+code-fold: true
+---
+
+```{css}
+#| include: false
+
+.reveal h1, .reveal h2, .reveal h3 {
+  text-transform: none;
+}
+
+.reveal h1 {
+  font-size: 2em;
+}
+
+.reveal h2 {
+  font-size: 1.6em;
+  margin-top: 0.5em;
+}
+
+.reveal pre {
+  width: 100%;
+  font-size: 0.55em;
+}
+
+.reveal code {
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.1);
+}
+
+.columns {
+  display: flex;
+  gap: 2em;
+}
+
+.column {
+  flex: 1;
+}
+
+.small-text {
+  font-size: 0.8em;
+}
+```
+
+```{r setup}
+#| include: false
+source(here::here("package_demo.R"))
+
+library(ggplot2)
+library(prefio)
+library(prefviz)
+library(dplyr)
+library(plotly)
+library(kableExtra)
+library(tibble)
+```
+
+## Imagine you are a club president, and you want to figure what drinks to order for the next major events...
+
+:::: {.columns}
+
+::: {.column width="50%" .fragment}
+So you make a list of drinks, and go out to ask every member to rank their preference from most to least preferred.
+
+1. Coke
+2. Orange juice
+3. Coffee
+:::
+
+::: {.column width="50%" .fragment}
+After everyone has made their choice, your data looks like this:
+
+```{r}
+#| echo: false 
+
+# Define the people and drink types
+people <- c("Alice", "Ben", "Carla", "David", "Ella")
+drinks <- c("coke", "orange juice", "coffee")
+
+# Create the tibble with random rankings for illustration
+set.seed(123)  # for reproducibility
+
+df <- expand.grid(name = people, drink_type = drinks) %>%
+  group_by(name) %>%
+  mutate(rank = sample(1:3, size = length(drinks), replace = FALSE)) %>%
+  ungroup() %>%
+  as_tibble()
+
+df
+```
+
+:::
+::::
+
+## You decided to look into people's first choice
+
+:::: {.columns}
+
+::: {.column width="50%" .fragment}
+Coffee seems to be the most popular drink among the people, followed by coke and orange juice.
+```{r}
+composition_tbl <- tibble(
+  coke = 0.30,
+  `orange juice` = 0.20,
+  coffee = 0.50
+)
+
+kable(composition_tbl)
+```
+
+:::
+
+::: {.column width="50%" .fragment}
+Which can be visualized easily with a bar chart or a stacked bar chart
+```{r}
+composition_long <- composition_tbl %>%
+  pivot_longer(everything(), names_to = "drink", values_to = "percentage")
+
+# Create stacked bar chart
+ggplot(composition_long, aes(x = 1, y = percentage, fill = drink)) +
+  geom_col(width = 0.6, color = "white", linewidth = 0.5) +
+  geom_text(aes(label = paste0(percentage, "%")), 
+            position = position_stack(vjust = 0.5), 
+            color = "white", fontface = "bold", size = 4) +
+  scale_fill_manual(values = c("coke" = "#FF6B6B", 
+                               "orange juice" = "#FECA57", 
+                               "coffee" = "#8B4513")) +
+  labs(title = "Drink first preference")  +
+  theme_bw() +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5, size = 12))
+```
+
+:::
+::::
+
+## What if you run the same poll in all 4 Monash campuses?
+
+:::: {.columns}
+
+::: {.column width="50%" .fragment}
+Here is the data you collected:
+
+```{r}
+composition_tbl <- tibble(
+  campus = c("Clayton", "Caulfield", "Peninsula", "Parkville"),
+  coke = c(0.70, 0.20, 0.10, 0.05),
+  `orange juice` = c(0.10, 0.60, 0.15, 0.25),
+  coffee = c(0.20, 0.20, 0.75, 0.70)
+)
+
+kable(composition_tbl)
+```
+
+:::
+
+::: {.column width="50%" .fragment}
+Visualizing the data is a bit more challenging, but it's still possible to see the differences between the campuses.
+```{r}
+composition_long <- composition_tbl %>%
+  pivot_longer(-campus, names_to = "drink", values_to = "pct")
+
+ggplot(composition_long, aes(x = campus, y = pct, fill = drink)) +
+  geom_col(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)), 
+            position = position_stack(vjust = 0.5), 
+            color = "white", fontface = "bold", size = 3.5) +
+  scale_fill_manual(values = c("coke" = "#FF6B6B", 
+                               "orange juice" = "#FECA57", 
+                               "coffee" = "#8B4513")) +
+  labs(y = "Proportion", title = "Drink Preferences by Campus") +
+  theme_bw() +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(labels = scales::percent)
+```
+
+:::
+::::
+
+## But what if you run this poll across all university campuses in Australia?
+
+I don't know how many campuses there are in Australia, but assume 150 campuses 😬😬😬
+
+```{r}
+#| fig.width: 10
+#| fig-align: center
+
+set.seed(42)
+n_campuses <- 150
+
+# Generate 150 campus compositions (same diverse patterns as 4-campus example)
+composition_tbl <- tibble(
+  campus = paste0("Campus_", 1:n_campuses),
+  coke = runif(n_campuses, 0.05, 0.80),
+  `orange juice` = runif(n_campuses, 0.05, 0.80),
+  coffee = 1 - coke - `orange juice`
+) %>%
+  mutate(across(coke:`orange juice`, ~ pmax(pmin(., 0.90), 0.05))) %>%
+  mutate(coffee = 1 - coke - `orange juice`) |> 
+  filter(coffee > 0, coke > 0, `orange juice` > 0)
+
+# Same 4-campus style plot, now for 150 campuses
+composition_long <- composition_tbl %>%
+  pivot_longer(-campus, names_to = "drink", values_to = "pct")
+
+ggplot(composition_long, aes(x = campus, y = pct, fill = drink)) +
+  geom_col(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)), 
+            position = position_stack(vjust = 0.5), 
+            color = "white", fontface = "bold", size = 2) +
+  scale_fill_manual(values = c("coke" = "#FF6B6B", 
+                               "orange juice" = "#FECA57", 
+                               "coffee" = "#8B4513")) +
+  labs(y = "Proportion", title = "Drink Preferences: 150 Campuses") +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1, size = 3),
+        strip.text = element_text(size = 6))
+```
+
+## Introduce: Ternary plot 🎉🎉🎉
+
+:::: {.columns}
+
+::: {.column width="50%"}
+
+
+
+![](abcnews.png)
+
+*ABC News shows interesting plot on 2025 House of Rep's distribution of first preference*
+:::
+
+::: {.column width="50%"}
+
+**How to read this plot?**
+
+::: {.incremental}
+- The edges are the axes, running from 0 to 1
+- Each point represents 1 observation (or stacked bar), and is made up of 3 parts: %ALP, %LNP, and %Other
+- If the point sits at one of the vertices, it means 100% of the composition is in that party.
+- If the point sits in the center, it means equal compositions of all party (33% each)
+:::
+
+:::
+
+::::
+
+## We make it interactive!
+
+Hover to see electorate names and exact vote percentages.
+```{r p2d_interactive}
+#| echo: false
+
+p2d_interactive
+```
+
+## We make it interactive!
+
+**Explore with map of electorate**
+
+Link the ternary plot with a map of electorates. Selecting a point in the ternary plot highlights the corresponding electorate on the map, and vice versa.
+
+```{r linked_map}
+#| echo: false
+
+bscols(
+  widths = c(4, 8),
+  plotly_ternary,
+  plotly_map
+)
+```
+
+## We bring it to high dimensions!
+
+:::: {.columns}
+
+::: {.column width="40%" .fragment}
+
+![](animation.gif)
+
+:::
+
+::: {.column width="60%" .fragment}
+And interactive! 
+```{r detourr}
+#| echo: false
+de
+```
+
+:::
+::::
+
+# `prefviz`
+
+::: {.incremental}
+- For preferential data
+- For **any dimensions**
+- Make it interactive and linkable
+:::
