@@ -1,0 +1,806 @@
+---
+title: "prefviz"
+subtitle: "Visualizing preferential voting data in any dimension"
+format:
+  revealjs:
+    embed-resources: true
+    theme: default
+    slide-number: true
+    scrollable: false
+    fontsize: 26px
+    progress: true
+    code-line-numbers: true
+    title-slide-attributes:
+      data-state: "hide-menubar"
+execute:
+  echo: false
+  warning: false
+  message: false
+  eval: true
+---
+
+```{css}
+/*| include: false */
+
+.reveal h1, .reveal h2, .reveal h3 {
+  text-transform: none;
+}
+
+.reveal h1 {
+  font-size: 2em;
+}
+
+.reveal h2 {
+  font-size: 1.5em;
+  margin-top: 0.3em;
+}
+
+.reveal pre {
+  width: 100%;
+  font-size: 0.52em;
+}
+
+.reveal code {
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.08);
+}
+
+.columns {
+  display: flex;
+  gap: 2em;
+}
+
+.column {
+  flex: 1;
+}
+
+.small-text {
+  font-size: 0.78em;
+}
+
+.center-slide {
+  text-align: center;
+}
+
+.highlight-box {
+  background: #f0f4ff;
+  border-left: 4px solid #1C4F9C;
+  padding: 0.6em 1em;
+  margin-top: 0.5em;
+  border-radius: 4px;
+}
+```
+
+```{r setup}
+#| include: false
+source("package_demo.R")
+
+library(ggplot2)
+library(prefviz)
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(plotly)
+library(kableExtra)
+library(crosstalk)
+```
+
+# Part 1 {.center-slide}
+
+**The Problem With Preferential Data**
+
+## Imagine you're a club president, and you want to figure what drinks to order for the next major event...
+
+:::: {.columns}
+
+::: {.column width="50%" .fragment}
+You run a quick poll asking every member to **rank their preferred drinks** - most to least preferred.
+
+| Member | 1st | 2nd | 3rd |
+|--------|-----|-----|-----|
+| Alice  | Coffee | Coke | OJ |
+| Ben    | Coke | OJ | Coffee |
+| Carla  | OJ | Coffee | Coke |
+| ...    | ... | ... | ... |
+:::
+
+::: {.column width="50%" .fragment}
+After the poll, you summarise **first preferences** across the group:
+
+```{r}
+#| echo: false
+composition_tbl <- tibble(
+  Drink = c("Coke", "Orange Juice", "Coffee"),
+  `Share (%)` = c(30, 20, 50)
+)
+kable(composition_tbl, align = "lr") |>
+  kable_styling(font_size = 22)
+```
+:::
+
+::::
+
+## One group → easy to visualise
+
+Very visible that coffee is the most popular choice. 
+
+```{r}
+#| fig-align: center
+#| fig-height: 4
+
+composition_long <- tibble(
+  campus = "Your Club",
+  Coke = 0.30, `Orange Juice` = 0.20, Coffee = 0.50
+) |>
+  pivot_longer(-campus, names_to = "drink", values_to = "pct")
+
+ggplot(composition_long, aes(x = campus, y = pct, fill = drink)) +
+  geom_col(color = "white", linewidth = 0.5, width = 0.4) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)),
+            position = position_stack(vjust = 0.5),
+            color = "white", fontface = "bold", size = 6) +
+  scale_fill_manual(values = c("Coke" = "#E74C3C",
+                               "Orange Juice" = "#F39C12",
+                               "Coffee" = "#6F4E37")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(y = NULL, x = NULL, fill = NULL) +
+  theme_minimal(base_size = 18) +
+  theme(legend.position = "right", panel.grid.major.x = element_blank())
+```
+
+## What if you run the same poll in all 4 Monash campuses?
+
+Visualizing the data is a bit more challenging, but it’s still possible to see the differences between the campuses.
+
+```{r}
+#| fig-align: center
+#| fig-height: 4.5
+
+composition_tbl <- tibble(
+  campus = c("Clayton", "Caulfield", "Peninsula", "Parkville"),
+  Coke = c(0.70, 0.20, 0.10, 0.05),
+  `Orange Juice` = c(0.10, 0.60, 0.15, 0.25),
+  Coffee = c(0.20, 0.20, 0.75, 0.70)
+)
+
+composition_long <- composition_tbl |>
+  pivot_longer(-campus, names_to = "drink", values_to = "pct")
+
+ggplot(composition_long, aes(x = campus, y = pct, fill = drink)) +
+  geom_col(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)),
+            position = position_stack(vjust = 0.5),
+            color = "white", fontface = "bold", size = 4.5) +
+  scale_fill_manual(values = c("Coke" = "#E74C3C",
+                               "Orange Juice" = "#F39C12",
+                               "Coffee" = "#6F4E37")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(y = NULL, x = NULL, fill = NULL) +
+  theme_minimal(base_size = 18) +
+  theme(legend.position = "right", panel.grid.major.x = element_blank())
+```
+
+## But what if you run this poll across all university campuses in Australia? 😬
+
+```{r}
+#| fig-align: center
+#| fig-height: 4.5
+
+set.seed(42)
+n_campuses <- 150
+
+composition_tbl <- tibble(
+  campus = paste0("Campus_", 1:n_campuses),
+  Coke = runif(n_campuses, 0.05, 0.80),
+  `Orange Juice` = runif(n_campuses, 0.05, 0.80),
+  Coffee = 1 - Coke - `Orange Juice`
+) |>
+  mutate(across(Coke:`Orange Juice`, ~ pmax(pmin(., 0.90), 0.05))) |>
+  mutate(Coffee = 1 - Coke - `Orange Juice`) |>
+  filter(Coffee > 0, Coke > 0, `Orange Juice` > 0)
+
+composition_long <- composition_tbl |>
+  pivot_longer(-campus, names_to = "drink", values_to = "pct")
+
+ggplot(composition_long, aes(x = campus, y = pct, fill = drink)) +
+  geom_col(color = "white", linewidth = 0.3) +
+  scale_fill_manual(values = c("Coke" = "#E74C3C",
+                               "Orange Juice" = "#F39C12",
+                               "Coffee" = "#6F4E37")) +
+  labs(y = NULL, x = NULL, fill = NULL) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "right",
+        axis.text.x = element_text(angle = 90, hjust = 1, size = 5),
+        panel.grid.major.x = element_blank())
+```
+
+## This is the case of Australian Federal Election
+
+- **150 electorates** across Australia in 2025
+- Voters **rank all candidates** (preferential voting)
+- There are **more than 3 parties**
+- Preferences are redistributed round by round until one candidate has majority
+- Result: a **composition** of ALP, LNP, Other support for each electorate - across every round of counting
+
+## Enter: the ternary plot
+
+:::: {.columns}
+
+::: {.column width="50%"}
+![](images/abcnews.png)
+
+::: {.small-text}
+*[ABC News](https://www.abc.net.au/news/2025-04-24/election-data-rise-independents-major-party-drift/105144918) published this ternary plot for the 2025 House of Representatives results*
+:::
+:::
+
+::: {.column width="50%"}
+
+::: {.incremental}
+- Each **dot** = one electorate
+- Three components: **ALP %, LNP %, Other %**
+- All 150 electorates visible **at once**
+- Position in the triangle encodes composition
+:::
+
+:::
+
+::::
+
+# Part 2 {.center-slide}
+
+**How to Read a Ternary Plot**
+
+## Each axis measures one party's share
+
+:::: {.columns}
+
+::: {.column width="55%"}
+
+```{r axis-demo}
+#| fig-height: 5
+#| fig-width: 5.5
+
+# Build a base ternary with axis labels for teaching
+p_base <- ggplot(
+  input_p2d_base |> filter(CountNumber == 0),
+  aes(x = x1, y = x2)
+) +
+  add_ternary_base() +
+  geom_ternary_region(
+    x1 = 1/3, x2 = 1/3, x3 = 1/3,
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_2d$vertex_labels,
+    alpha = 0.25, color = NA, show.legend = FALSE
+  ) +
+  add_vertex_labels(tern_2d$simplex_vertices) +
+  scale_fill_manual(
+    values = c("ALP" = "#E13940", "LNP" = "#1C4F9C", "Other" = "#95A5A6")
+  ) +
+  theme_void()
+
+# Find one electorate strongly dominated by each party
+strong_alp   <- input_p2d_base |> filter(CountNumber == 0) |> arrange(desc(ALP))   |> slice(1)
+strong_lnp   <- input_p2d_base |> filter(CountNumber == 0) |> arrange(desc(LNP))   |> slice(1)
+strong_other <- input_p2d_base |> filter(CountNumber == 0) |> arrange(desc(Other)) |> slice(1)
+
+# Centroid of the simplex (exact 1/3, 1/3, 1/3 position)
+center_pt <- data.frame(
+  x1 = mean(tern_2d$simplex_vertices$x1),
+  x2 = mean(tern_2d$simplex_vertices$x2)
+)
+
+p_base +
+  # Three extreme points
+  geom_point(data = strong_alp,   size = 4, color = "#E13940") +
+  geom_point(data = strong_lnp,   size = 4, color = "#1C4F9C") +
+  geom_point(data = strong_other, size = 4, color = "#10C25B") +
+  # Centre point (diamond shape to distinguish)
+  geom_point(data = center_pt, size = 5, color = "#8E44AD", shape = 18) +
+  # Labels for extreme points
+  annotate("text", x = strong_alp$x1,   y = strong_alp$x2 - 0.05,
+           label = "Sydney (ALP: 55.1%)",   color = "#E13940", size = 3.2,  fontface = "bold") +
+  annotate("text", x = strong_lnp$x1,   y = strong_lnp$x2 - 0.05,
+           label = "Mananoa (LNP: 53.2%)",   color = "#1C4F9C", size = 3.2, fontface = "bold") +
+  annotate("text", x = strong_other$x1, y = strong_other$x2 + 0.05,
+           label = "Solomon (Other: 67.2%)", color = "#10C25B", size = 3.2, fontface = "bold") +
+  # Label for centre
+  annotate("text", x = center_pt$x1, y = center_pt$x2 + 0.05,
+           label = "Centre (33% each)", color = "#8E44AD", size = 3, fontface = "bold")
+```
+
+:::
+
+::: {.column width="45%"}
+
+::: {.incremental}
+- **Three vertices** — one for each party
+- The closer a point is to a vertex, the more support for that party (see Sydney, Mananoa, and Solomon)
+- Central point = equal compositions of all parties (33% each)
+- The three shares always sum to **100%**
+:::
+
+:::
+
+::::
+
+# Part 3 {.center-slide}
+
+**2025 Australian Federal Election**
+
+## First preference distribution
+
+Hover over any point to see the electorate name and exact vote shares.
+
+```{r p2d-interactive}
+#| echo: false
+
+p2d_interactive
+```
+
+## Flow of preference - within an electorate
+
+Track how votes move as candidates are eliminated, round by round.
+
+```{r p2d-line}
+#| echo: false
+
+p2d_line_interactive
+```
+
+## Add geographic context: linked map
+
+Select points in the ternary to highlight electorates on the map, and vice versa.
+
+```{r linked-map}
+#| echo: false
+
+bscols(
+  widths = c(4, 8),
+  plotly_ternary,
+  plotly_map
+)
+```
+
+## Beyond three parties: high dimensions
+
+:::: {.columns}
+
+::: {.column width="40%" .fragment}
+With **5 parties** (ALP, LNP, GRN, IND, Other), the ternary becomes a 4-simplex - impossible to show in 2D directly.
+
+`tourr` produces a sequence of 2D projections of the object.
+
+:::
+
+::: {.column width="60%" .fragment}
+![](images/animation.gif)
+:::
+
+::::
+
+## And we can make it interactive
+
+```{r detourr}
+#| echo: false
+de
+```
+
+## Shiny App: Explore the temporal and spatial pattern in one place
+
+![](images/shiny_app.png)
+
+# Part 4 {.center-slide}
+
+**Recreate the example with `prefviz`**
+
+## Function overview
+
+| Step | Function | What it does |
+|:----:|:---------|:-------------|
+| **1. Data transformation** | `dop_transform()` - for raw ballot data <br/> `dop_irv()` - for aggregated preferences | Reshapes data to compositional format |
+| **2. Construct ternary components** | `as_ternable()` - create `ternable` object <br/> `get_tern_*()` - Getter functions for transforming components to appropriate shapes | Builds the simplex object (vertices, edges, coordinates) |
+| **3. Visualization** | `ggplot2` & `tourr` extensions | Interactive 2D or high-dimensional plots |
+
+## Step 1: Transform the data
+
+Raw data is from AEC’s 2025 House of Representatives distribution of preferences (same as your assignment!).
+
+```{r}
+pref25_2d <- aecdop_2025 |> 
+  filter(CalculationType == "Preference Percent") |>
+  mutate(Party = case_when(
+    !(PartyAb %in% c("LP", "ALP", "NP", "LNP", "LNQ")) ~ "Other", 
+    PartyAb %in% c("LP", "NP", "LNP", "LNQ") ~ "LNP",
+    TRUE ~ PartyAb
+  ))
+  
+print(
+  head(
+    pref25_2d |> 
+    select(StateAb, DivisionNm, CountNumber, PartyAb, Elected, CalculationValue), 
+  5), width = Inf)
+```
+
+## Step 1: Transform the data
+
+Transformed data with 3 columns representing the composition of each party in each electorate, summing to 1.
+
+```{r step1}
+#| echo: true
+
+pref25_2d <- dop_transform(
+  data             = pref25_2d,
+  key_cols         = c(DivisionNm, CountNumber),
+  value_col        = CalculationValue,
+  item_col         = Party,
+  winner_col       = Elected,
+  winner_identifier = "Y"
+)
+pref25_2d
+```
+
+## Step 2: Get components of ternary plots via `ternable` object
+
+:::: {.columns}
+
+::: {.column width="55%"}
+
+A `ternable` object contains the data and metadata necessary for ternary plots, including the **vertices, edges, labels** of the simplex, and **coordinates** of all data points.
+
+```{r step2}
+#| echo: true
+#| code-fold: false
+
+tern_2d <- as_ternable(pref25_2d, items = ALP:Other)
+```
+
+::: {.incremental}
+- **`ternary_coords`** - coordinates of all data points
+- **`simplex_vertices`** - coordinates of the 3 corners
+- **`simplex_edges`** - pairs connecting vertices
+- **`vertex_labels`** - party names at each corner
+
+:::
+
+:::
+
+::: {.column width="45%"}
+
+![](images/draw.png)
+
+:::
+
+::::
+
+## Step 3: Visualize (2D) — extract coordinates
+
+:::: {.columns}
+
+::: {.column width="55%"}
+
+```{r step3-show-1}
+#| echo: true
+#| eval: false
+#| code-fold: false
+#| code-line-numbers: "1-2"
+
+input_data <- get_tern_data(tern_2d, plot_type = "2D")
+
+ggplot(input_data |> filter(CountNumber == 0),
+       aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  geom_ternary_region(
+    x1 = 1/3, x2 = 1/3, x3 = 1/3,
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_2d$vertex_labels,
+    alpha = 0.3, color = NA, show.legend = FALSE
+  ) +
+  add_vertex_labels(tern_2d$simplex_vertices) +
+  geom_point(aes(color = Winner)) +
+  scale_color_manual(values = party_colors)
+```
+
+:::
+
+::: {.column width="45%"}
+
+```{r step3-plot-1}
+#| echo: false
+
+input_data_v <- get_tern_data(tern_2d, plot_type = "2D")
+kable(
+  head(input_data_v |> filter(CountNumber == 0) |>
+         select(DivisionNm, x1, x2, Winner), 6),
+  digits = 3, align = "lccl", col.names = c("Electorate", "x1", "x2", "Winner")
+) |>
+  kable_styling(font_size = 14)
+```
+
+:::
+
+::::
+
+---
+
+## Step 3: Visualize (2D) — draw the frame
+
+:::: {.columns}
+
+::: {.column width="55%"}
+
+```{r step3-show-2}
+#| echo: true
+#| eval: false
+#| code-fold: false
+#| code-line-numbers: "3-5"
+
+input_data <- get_tern_data(tern_2d, plot_type = "2D")
+
+ggplot(input_data |> filter(CountNumber == 0),
+       aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  geom_ternary_region(
+    x1 = 1/3, x2 = 1/3, x3 = 1/3,
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_2d$vertex_labels,
+    alpha = 0.3, color = NA, show.legend = FALSE
+  ) +
+  add_vertex_labels(tern_2d$simplex_vertices) +
+  geom_point(aes(color = Winner)) +
+  scale_color_manual(values = party_colors)
+```
+
+:::
+
+::: {.column width="45%"}
+
+```{r step3-plot-2}
+#| echo: false
+#| fig-height: 5
+#| fig-width: 4.5
+
+ggplot(input_data_v |> filter(CountNumber == 0), aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  theme_void()
+```
+
+:::
+
+::::
+
+---
+
+## Step 3: Visualize (2D) — colour party regions
+
+:::: {.columns}
+
+::: {.column width="55%"}
+
+```{r step3-show-3}
+#| echo: true
+#| eval: false
+#| code-fold: false
+#| code-line-numbers: "6-11"
+
+input_data <- get_tern_data(tern_2d, plot_type = "2D")
+
+ggplot(input_data |> filter(CountNumber == 0),
+       aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  geom_ternary_region(
+    x1 = 1/3, x2 = 1/3, x3 = 1/3,
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_2d$vertex_labels,
+    alpha = 0.3, color = NA, show.legend = FALSE
+  ) +
+  add_vertex_labels(tern_2d$simplex_vertices) +
+  geom_point(aes(color = Winner)) +
+  scale_color_manual(values = party_colors)
+```
+
+:::
+
+::: {.column width="45%"}
+
+```{r step3-plot-3}
+#| echo: false
+#| fig-height: 5
+#| fig-width: 4.5
+
+ggplot(input_data_v |> filter(CountNumber == 0), aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  geom_ternary_region(
+    x1 = 1/3, x2 = 1/3, x3 = 1/3,
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_2d$vertex_labels,
+    alpha = 0.3, color = NA, show.legend = FALSE
+  ) +
+  scale_fill_manual(values = c("ALP" = "#E13940", "LNP" = "#1C4F9C", "Other" = "#95A5A6")) +
+  theme_void()
+```
+
+:::
+
+::::
+
+---
+
+## Step 3: Visualize (2D) — label the vertices
+
+:::: {.columns}
+
+::: {.column width="55%"}
+
+```{r step3-show-4}
+#| echo: true
+#| eval: false
+#| code-fold: false
+#| code-line-numbers: "12"
+
+input_data <- get_tern_data(tern_2d, plot_type = "2D")
+
+ggplot(input_data |> filter(CountNumber == 0),
+       aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  geom_ternary_region(
+    x1 = 1/3, x2 = 1/3, x3 = 1/3,
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_2d$vertex_labels,
+    alpha = 0.3, color = NA, show.legend = FALSE
+  ) +
+  add_vertex_labels(tern_2d$simplex_vertices) +
+  geom_point(aes(color = Winner)) +
+  scale_color_manual(values = party_colors)
+```
+
+:::
+
+::: {.column width="45%"}
+
+```{r step3-plot-4}
+#| echo: false
+#| fig-height: 5
+#| fig-width: 4.5
+
+ggplot(input_data_v |> filter(CountNumber == 0), aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  geom_ternary_region(
+    x1 = 1/3, x2 = 1/3, x3 = 1/3,
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_2d$vertex_labels,
+    alpha = 0.3, color = NA, show.legend = FALSE
+  ) +
+  add_vertex_labels(tern_2d$simplex_vertices) +
+  scale_fill_manual(values = c("ALP" = "#E13940", "LNP" = "#1C4F9C", "Other" = "#95A5A6")) +
+  theme_void()
+```
+
+:::
+
+::::
+
+---
+
+## Step 3: Visualize (2D) — add the data
+
+:::: {.columns}
+
+::: {.column width="55%"}
+
+```{r step3-show-5}
+#| echo: true
+#| eval: false
+#| code-fold: false
+#| code-line-numbers: "13-14"
+
+input_data <- get_tern_data(tern_2d, plot_type = "2D")
+
+ggplot(input_data |> filter(CountNumber == 0),
+       aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  geom_ternary_region(
+    x1 = 1/3, x2 = 1/3, x3 = 1/3,
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_2d$vertex_labels,
+    alpha = 0.3, color = NA, show.legend = FALSE
+  ) +
+  add_vertex_labels(tern_2d$simplex_vertices) +
+  geom_point(aes(color = Winner)) +
+  scale_color_manual(values = party_colors)
+```
+
+:::
+
+::: {.column width="45%"}
+
+```{r step3-plot-5}
+#| echo: false
+#| fig-height: 5
+#| fig-width: 4.5
+
+ggplot(input_data_v |> filter(CountNumber == 0), aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  geom_ternary_region(
+    x1 = 1/3, x2 = 1/3, x3 = 1/3,
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_2d$vertex_labels,
+    alpha = 0.3, color = NA, show.legend = FALSE
+  ) +
+  add_vertex_labels(tern_2d$simplex_vertices) +
+  geom_point(aes(color = Winner), size = 1.5, alpha = 0.8) +
+  scale_fill_manual(values = c("ALP" = "#E13940", "LNP" = "#1C4F9C", "Other" = "#95A5A6")) +
+  scale_color_manual(values = party_colors, name = "Elected") +
+  theme_void() +
+  theme(legend.position = "bottom", legend.text = element_text(size = 10))
+```
+
+:::
+
+::::
+
+## Step 3: High-dimensional (5 parties)
+
+`prefviz` depends on `tourr` for high-dimensional visualization, and `detourr` for interactive tours.
+
+:::: {.columns}
+
+::: {.column width="60%"}
+
+```{r step3-3}
+#| eval: false
+#| echo: true
+#| code-fold: false
+#| code-line-numbers: "6-8"
+color_vector <- c(rep("black", 5),
+  party_colors[pref25_hd$Winner])
+
+# Animate the tour
+animate_xy(
+  get_tern_data(tern_hd, plot_type = "HD"),  # Get data from ternable
+  edges = get_tern_edges(tern_hd), # Get edges from ternable
+  obs_labels  = get_tern_labels(tern_hd), # Get labels from ternable
+  col = color_vector,
+  axes = "bottomleft"
+)
+```
+
+:::
+
+::: {.column width="40%"}
+
+![](images/animation.gif)
+
+:::
+::::
+
+## What's next
+
+:::: {.columns}
+
+::: {.column width="50%"}
+
+::: {.fragment}
+**Expand the toolkit**
+
+Beyond ternary plots — other visualization types for preferential data (flow diagrams, rank heatmaps, ...)
+:::
+
+:::
+
+::: {.column width="50%"}
+
+::: {.fragment}
+**Beyond elections**
+
+Any data where components sum to 1:
+
+- Survey response distributions
+- Market share over time
+- Species composition in ecology
+- Portfolio allocation
+:::
+
+:::
+
+::::

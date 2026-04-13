@@ -21,9 +21,10 @@ pref25_2d <- aecdop_2025 |>
     !(PartyAb %in% c("LP", "ALP", "NP", "LNP", "LNQ")) ~ "Other",
     PartyAb %in% c("LP", "NP", "LNP", "LNQ") ~ "LNP",
     TRUE ~ PartyAb
-  ))
+  )) 
 
 # Transform
+party_cols <- c("ALP", "LNP", "Other")
 pref25_2d <- dop_transform(
   data = pref25_2d,
   key_cols = c(DivisionNm, CountNumber),
@@ -31,7 +32,16 @@ pref25_2d <- dop_transform(
   item_col = Party,
   winner_col = Elected,
   winner_identifier = "Y"
-)
+) |> 
+  # highest pref party in the round
+  rowwise() |>
+  mutate(
+    pref1_party = {
+      vals <- c_across(all_of(party_cols))
+      party_cols[which.max(vals)]
+    }
+  ) |>
+  ungroup()
 
 # Ternable
 tern_2d <- as_ternable(pref25_2d, items = ALP:Other)
@@ -91,7 +101,7 @@ p2d_interactive <- girafe(
 
 # Line
 line_input <- input_data |>
-  filter(DivisionNm %in% c("Higgins", "Monash", "Melbourne")) |>
+  filter(DivisionNm %in% c("Hotham", "Fowler", "Monash")) |>
   mutate(text = paste0(
     "Round:", CountNumber, "\n",
     text
@@ -106,21 +116,21 @@ p2d_line <- ggplot(line_input, aes(x = x1, y = x2)) +
     alpha = 0.3, color = "grey50",
     show.legend = FALSE
   ) +
-  geom_point_interactive(
-    aes(color = Winner,
-        tooltip = text,
-        data_id = DivisionNm)
-  ) +
   stat_ordered_path(
     aes(group = DivisionNm, order_by = CountNumber, color = Winner),
-    size = 0.5
+    line.width = 0.5
+  ) +
+  geom_point_interactive(
+    aes(color = pref1_party,
+        tooltip = text,
+        data_id = DivisionNm)
   ) +
   add_vertex_labels(tern_2d$simplex_vertices) +
   scale_fill_manual(
     values = c("ALP" = "red", "LNP" = "blue", "Other" = "grey70")
   ) +
   scale_color_manual(
-    values = c("ALP" = "red", "LNP" = "blue", "Other" = "grey70"),
+    values = c("ALP" = "red", "LNP" = "blue", "Other" = "grey20"),
     name = "Elected Party"
   )
 
