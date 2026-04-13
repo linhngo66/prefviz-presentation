@@ -196,3 +196,42 @@ detour_edges_flow <- map_edges(detour_df_flow)
 #   scale_color_manual(values = party_colors) +
 #   coord_equal() +
 #   theme_map()
+
+## Sugarbag
+# library(sf)
+# library(sugarbag)
+# map <- read_sf("2025_ELB/AUS_ELB_region.shp")
+
+# centroids <- create_centroids(map, "Elect_div")
+# grid <- create_grid(
+#   centroids, 
+#   hex_size = 0.2, buffer_dist = 2)
+# # Allocate the centroids to the hexagon grid
+# # We have the same amount of rows, as individual regions
+# hex_allocated <- allocate(
+#   centroids = centroids,
+#   hex_grid = grid,
+#   hex_size = 0.2, # same size used in create_grid
+#   hex_filter = 3,
+#   width = 30, 
+#   verbose = TRUE
+# )
+
+# hexagons <- fortify_hexagon(
+#   data = hex_allocated, 
+#   sf_id = "Elect_div", hex_size = 0.2)
+
+# polygons <- fortify_sfc(map) %>% 
+#   mutate(poly_type = "geo")
+
+# ggplot(mapping = aes(fill = Elect_div)) +
+#   geom_polygon(data = polygons, 
+#                aes(x=long, lat, 
+#     group = interaction(Elect_div, polygon)), 
+#                alpha = 0.4) +
+#   geom_polygon(data = hexagons, 
+#                aes(x=long, lat, 
+#     group = interaction(Elect_div))) +
+#   scale_fill_viridis_d() +
+#   theme_map() +
+#   theme(legend.position = "none", aspect.ratio = 1)

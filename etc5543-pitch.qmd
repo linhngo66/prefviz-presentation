@@ -153,11 +153,7 @@ ggplot(composition_long, aes(x = 1, y = percentage, fill = drink)) +
 
 ## What if you run the same poll in all 4 Monash campuses?
 
-:::: {.columns}
-
-::: {.column width="50%" .fragment}
-Here is the data you collected:
-
+Visualizing the data is a bit more challenging, but it's still possible to see the differences between the campuses.
 ```{r}
 composition_tbl <- tibble(
   campus = c("Clayton", "Caulfield", "Peninsula", "Parkville"),
@@ -166,14 +162,6 @@ composition_tbl <- tibble(
   coffee = c(0.20, 0.20, 0.75, 0.70)
 )
 
-kable(composition_tbl)
-```
-
-:::
-
-::: {.column width="50%" .fragment}
-Visualizing the data is a bit more challenging, but it's still possible to see the differences between the campuses.
-```{r}
 composition_long <- composition_tbl %>%
   pivot_longer(-campus, names_to = "drink", values_to = "pct")
 
@@ -192,9 +180,6 @@ ggplot(composition_long, aes(x = campus, y = pct, fill = drink)) +
         axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_y_continuous(labels = scales::percent)
 ```
-
-:::
-::::
 
 ## But what if you run this poll across all university campuses in Australia?
 
