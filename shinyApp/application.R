@@ -113,6 +113,16 @@ map_edges <- function(detour_transform_df) {
   edges
 }
 
+tourr_data <- tsern$data |> 
+  bind_cols(tsern$ternary_coord)
+tourr_data <- tsern$simplex_vertices |> 
+  bind_rows(tourr_data) |> 
+  mutate(labels = ifelse(is.na(labels), "", labels))
+tourr_data_enhanced <- tourr_data |> 
+  left_join(
+      elb_centroid[, c("long", "lat", "elect_div")],
+      by = c("DivisionNm" = "elect_div"))
+
 #### Color setup ---------------------------------------------
 party_colors <- c(
   "ALP" = "#E13940",
@@ -123,9 +133,8 @@ party_colors <- c(
 )
 
 #### Output for Shiny App ---------------------------------------------
-detour_df_first <- get_tern_data(tsern, plot_type = "2D") |>
-  filter(CountNumber == 0) |> 
-  detour_transform() |> 
+detour_df_first <- tourr_data_enhanced |> 
+  filter(!is.na(labels) | CountNumber == 0) |>
   mutate(
     text = if_else(
       is.na(labels), 
@@ -144,7 +153,7 @@ detour_df_first <- get_tern_data(tsern, plot_type = "2D") |>
   )
 detour_edges_first <- map_edges(detour_df_first)
 
-detour_df_flow <- get_tern_data(tsern, plot_type = "2D") |>
+detour_df_flow <- get_tern_data2d(tsern) |>
   filter(Year == 2025) |> 
   detour_transform() |> 
   mutate(
@@ -164,6 +173,16 @@ detour_df_flow <- get_tern_data(tsern, plot_type = "2D") |>
       labels)
   )
 detour_edges_flow <- map_edges(detour_df_flow)
+
+## Tourr -----------------------------------------------------------------
+# x11()
+# animate_xy(
+#   tourr_data_enhanced[,1:4],
+#   tour_path = grand_tour(3),
+#   obs_labels = tourr_data_enhanced[,"labels"],
+#   edges = get_tern_edges(tsern),
+#   col = party_colors
+# )
 
 # de <- detour(
 #   detour_df_flow,

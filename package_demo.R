@@ -47,7 +47,7 @@ pref25_2d <- dop_transform(
 tern_2d <- as_ternable(pref25_2d, items = ALP:Other)
 
 # Plot
-input_data <- get_tern_data(tern_2d, plot_type = "2D") |>
+input_data <- get_tern_data2d(tern_2d) |>
   mutate(text = paste0(DivisionNm, "\n",
                 "ALP: ", round(ALP*100, 1), "%\n",
                 "LNP: ", round(LNP*100, 1), "%\n",
@@ -181,7 +181,7 @@ col_first_pref <- c(rep("black", 5),
 dtour_data <- tern_hd$simplex_vertices |>
   mutate(Winner = labels) |>
   mutate(Winner = factor(Winner, levels = c("ALP", "LNP", "GRN", "IND", "Other"))) |>
-  bind_rows(get_tern_data(tern_hd, plot_type = "2D")) |>
+  bind_rows(get_tern_data2d(tern_hd)) |>
   mutate(text = if_else(
     is.na(labels),
     paste0(DivisionNm, "\n",
@@ -193,6 +193,10 @@ dtour_data <- tern_hd$simplex_vertices |>
           "Other: ", round(Other*100, 1), "%"),
     labels
   ))
+
+set.seed(327)
+lt <- save_history(dtour_data[,1:4], little_tour(), max_bases=6)
+lt <- lt[,,c(1, 4, 6, 5, 3, 2)]
 
 de <- detour(
   dtour_data,

@@ -237,6 +237,9 @@ server <- function(input, output, session) {
   output$tour_plot <- renderUI({
     fd <- detourr_data()
     edges <- detour_edges_first
+    set.seed(327)
+    lt <- save_history(fd[,1:4], little_tour(), max_bases=6)
+    lt <- lt[,,c(1, 4, 6, 5, 3, 2)]
 
     detour(
       fd,
@@ -246,7 +249,7 @@ server <- function(input, output, session) {
         label      = c(text)
       )
     ) |>
-      tour_path(grand_tour(3), fps = 60) |>
+      tour_path(planned_tour(lt), fps = 60) |>
       show_scatter(
         axes = FALSE, 
         edges = edges, 
