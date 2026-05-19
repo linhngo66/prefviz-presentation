@@ -102,7 +102,6 @@ library(ggiraph)
 
 **Forms of preferential data**
 
- 
 
 ## The same rankings can be stored in multiple shapes
 
