@@ -84,8 +84,7 @@ p2d_scatter <- ggplot(
   scale_color_manual(
     values = party_colors,
     name   = "Elected party"
-  ) +
-  labs(title = "First preference by electorates in 2025 Australian House of Representatives election")
+  ) 
 
 p2d_scatter_interactive <- girafe(
   ggobj = p2d_scatter,

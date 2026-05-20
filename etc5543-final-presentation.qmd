@@ -534,8 +534,26 @@ pairwise_heatmap(pw_result, value = "tcp")
 
 *Diagonal = 50% (item vs itself); values > 50% indicate the row item is more often preferred.*
 
-## Next steps
+## Limitations and Next steps
 
-- Publish version 1.0.1 to CRAN.
-- Add new `ggplot2` extensions for 2D ternary plots
-- Submit a software paper to *R Journal*.
+:::: {.columns}
+
+::: {.column width="50%"}
+
+**Limitations**
+
+- 2D plots lack visual aids such as axis ticks, reference lines, and axis labels to help orient the viewer
+- Precise projections for HD plots to observe all pairwise compositions need mathematical computation
+
+:::
+
+::: {.column width="50%"}
+
+**Next steps**
+
+- Website refresh for version 0.1.2
+- Submit a software paper to *R Journal*
+
+:::
+
+::::
