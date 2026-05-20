@@ -1,4 +1,6 @@
 /.quarto/
+_site/
+*.knit.md
 2025_ELB/
 .posit/
 CLAUDE.md

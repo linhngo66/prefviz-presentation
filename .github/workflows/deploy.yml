@@ -12,8 +12,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy docs/ to gh-pages
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Install R packages
+        run: |
+          install.packages(c(
+            "prefio", "prefviz", "detourr", "tourr",
+            "ggplot2", "dplyr", "tidyr", "tibble",
+            "kableExtra", "scales", "ggiraph", "here"
+          ))
+        shell: Rscript {0}
+
+      - name: Render presentation
+        run: quarto render etc5543-final-presentation.qmd --output-dir _site
+
+      - name: Copy landing page
+        run: cp index.html _site/index.html
+
+      - name: Deploy to gh-pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: docs
+          folder: _site
