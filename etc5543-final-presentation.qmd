@@ -154,7 +154,7 @@ kable(long_ex) |> kable_styling(font_size = 18, full_width = FALSE)
 
 **PrefLib** — encodes all items + a lot more metadata
 
-![](images/preflib.png)
+![](images/preflib.png){width="75%"}
 
 :::
 
@@ -438,6 +438,8 @@ p2d_line_interactive
 ## Plot
 
 ```{r detourr-plot}
+#| out-height: "450px"
+#| out-width: "100%"
 detour_scatter
 ```
 
