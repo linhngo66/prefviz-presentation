@@ -101,7 +101,7 @@ p2d_scatter_interactive <- girafe(
 ### 2D paths of vote shares across counting rounds for selected electorates
 
 path_input <- input_data |>
-  filter(DivisionNm %in% c("Fowler", "Melbourne", "Richmond", "Solomon")) |>
+  filter(DivisionNm %in% c("Fowler", "Melbourne", "Richmond")) |>
   mutate(text = paste0("Round: ", CountNumber, "\n", text))
 
 p2d_line <- ggplot(path_input, aes(x = x1, y = x2)) +
@@ -112,11 +112,14 @@ p2d_line <- ggplot(path_input, aes(x = x1, y = x2)) +
     alpha = 0.3, color = "black", show.legend = FALSE
   ) +
   stat_ordered_path(
-    aes(group = DivisionNm, order_by = CountNumber, color = DivisionNm),
+    aes(group = DivisionNm, 
+      order_by = CountNumber, color = DivisionNm),
     linewidth = 0.5
   ) +
   add_vertex_labels(tern_2d$simplex_vertices) +
-  geom_point_interactive(aes(color = pref1_party, shape = DivisionNm, tooltip = text, data_id = DivisionNm)) +
+  geom_point_interactive(
+    aes(color = pref1_party, shape = DivisionNm, 
+      tooltip = text, data_id = DivisionNm), size = 1.3) +
   scale_fill_manual(
     values = c(party_colors)
   ) +

@@ -22,7 +22,7 @@ execute:
 
 .reveal h1, .reveal h2, .reveal h3 { text-transform: none; }
 .reveal h1 { font-size: 1.8em; }
-.reveal h2 { font-size: 1.4em; margin-top: 0.3em; }
+.reveal h2 { font-size: 1.2em; margin-top: 0.3em; }
 .reveal pre { width: 100%; font-size: 0.52em; }
 .reveal code { padding: 2px 6px; background: rgba(0,0,0,0.08); }
 .small-text { font-size: 0.75em; }
@@ -111,7 +111,7 @@ library(ggiraph)
 
 **Motivation**
 
-## Preferential data comes in many shapes
+## Preferential data comes in many shapes...
 
 ::: {.columns}
 
@@ -124,9 +124,9 @@ library(ggiraph)
 ```{r wide-example}
 wide_ex <- tibble(
   Member = c("Alice", "Ben", "Carla"),
-  `1st` = c("Coffee", "Coke", "OJ"),
-  `2nd` = c("Coke", "OJ", "Coffee"),
-  `3rd` = c("OJ", "Coffee", "Coke")
+  `tamago (egg)` = c(1L, 3L, 2L),
+  `ebi (shrimp)`    = c(2L, 1L, 3L),
+  `anago (sea eel)`  = c(3L, 2L, 1L)
 )
 
 kable(wide_ex) |> kable_styling(font_size = 18, full_width = FALSE)
@@ -140,7 +140,7 @@ kable(wide_ex) |> kable_styling(font_size = 18, full_width = FALSE)
 ```{r long-example}
 long_ex <- tibble(
   voter = rep(c("Alice", "Ben", "Carla"), each = 3),
-  item  = rep(c("Coffee", "Coke", "OJ"), times = 3),
+  item  = rep(c("tamago (egg)", "ebi (shrimp)", "anago (sea eel)"), times = 3),
   rank  = c(1L, 2L, 3L, 2L, 1L, 3L, 3L, 2L, 1L)
 )
 kable(long_ex) |> kable_styling(font_size = 18, full_width = FALSE)
@@ -159,6 +159,26 @@ kable(long_ex) |> kable_styling(font_size = 18, full_width = FALSE)
 :::
 
 :::
+
+## And ideally, we want their shapes to be all the same
+
+```{r prefio}
+#| echo: true
+
+sushi_data <- prefio::read_preflib(
+  "00014 - sushi/00014-00000001.soc",
+  from_preflib = TRUE
+)
+```
+
+```{r prefio-print}
+#| echo: false
+prefio::read_preflib(
+  "00014 - sushi/00014-00000001.soc",
+  from_preflib = TRUE
+) |> head(5) |>
+  kable() |> kable_styling(font_size = 15, full_width = FALSE)
+```
 
 ## How do we compare first preferences across 150 electorates?
 
@@ -236,11 +256,13 @@ pref25_2d |>
 
 ## Transform the data
 
+:::: {.columns}
+
+::: {.column width="50%"}
+
 ::: {.fragment}
 
-::: {small-text}
 **Raw data**
-:::
 
 ```{r show-raw}
 #| echo: true
@@ -254,11 +276,14 @@ prefviz::aecdop_2025 |>
 
 :::
 
+:::
+
+::: {.column width="50%"}
+
 ::: {.fragment}
 
-::: {small-text}
 **Transformed data**
-:::
+
 ```{r show-transform}
 #| echo: true
 #| eval: false
@@ -277,11 +302,15 @@ pref25_2d <- dop_transform(
 ```{r}
 #| echo: false
 
-pref25_2d |> 
+pref25_2d |>
   select(-pref1_party, -true_winner)
 ```
 
 :::
+
+:::
+
+::::
 
 ## First preferences across 150 electorates (1/2) {.smaller}
 
@@ -302,7 +331,7 @@ p2d_scatter_interactive
 ggplot(
   input_data |> filter(CountNumber == 0), 
   aes(x = x1, y = x2)) +
-  add_ternary_base()
+  add_ternary_base() +
 ```
 
 :::
@@ -311,15 +340,10 @@ ggplot(
 ```{r}
 #| echo: true
 #| eval: false
-ggplot(
-  input_data |> filter(CountNumber == 0), 
-  aes(x = x1, y = x2)) +
-  add_ternary_base() +
   geom_ternary_region(
     aes(fill = after_stat(vertex_labels)), 
     vertex_labels = tern_2d$vertex_labels, 
     alpha = 0.3, color = NA, show.legend = FALSE) +
-  scale_fill_manual(values = party_colors)
 ```
 
 :::
@@ -328,15 +352,7 @@ ggplot(
 ```{r}
 #| echo: true
 #| eval: false
-ggplot(
-  input_data |> filter(CountNumber == 0), 
-  aes(x = x1, y = x2)) +
-  add_ternary_base() +
-  geom_ternary_region(
-    aes(fill = after_stat(vertex_labels)), 
-    vertex_labels = tern_2d$vertex_labels, 
-    alpha = 0.3, color = NA, show.legend = FALSE) +
-  add_vertex_labels(tern_2d$simplex_vertices)
+  add_vertex_labels(tern_2d$simplex_vertices) +
 
 ```
 :::
@@ -345,15 +361,6 @@ ggplot(
 ```{r}
 #| echo: true
 #| eval: false
-ggplot(
-  input_data |> filter(CountNumber == 0), 
-  aes(x = x1, y = x2)) +
-  add_ternary_base() +
-  geom_ternary_region(
-    aes(fill = after_stat(vertex_labels)), 
-    vertex_labels = tern_2d$vertex_labels, 
-    alpha = 0.3, color = NA, show.legend = FALSE) +
-  add_vertex_labels(tern_2d$simplex_vertices) +
   geom_point(aes(color = Winner))
 ```
 :::
@@ -387,22 +394,14 @@ ggplot(
 
 ## How do preference shares shift through counting rounds? {.smaller}
 
-::: {.small-text}
-
-Electorates: Fowler, Melbourne, Richmond, Solomon
-:::
-
-::: {.columns}
-
-::: {.column width="35%"}
-
 ```{r flow-code}
 #| echo: true
+#| code-fold: true
 #| eval: false
 #| code-line-numbers: "1-3|7-9"
 
 path_input <- input_data |>
-  filter(DivisionNm %in% c("Fowler", "Melbourne", "Richmond", "Solomon")) |>
+  filter(DivisionNm %in% c("Fowler", "Melbourne", "Richmond")) |>
   mutate(text = paste0("Round: ", CountNumber, "\n", text))
 
 ggplot(path_input, aes(x = x1, y = x2)) +
@@ -414,9 +413,6 @@ ggplot(path_input, aes(x = x1, y = x2)) +
   ...
 ```
 
-:::
-
-::: {.column width="65%"}
 
 ```{r flow-plot}
 #| echo: false
@@ -426,9 +422,6 @@ ggplot(path_input, aes(x = x1, y = x2)) +
 p2d_line_interactive
 ```
 
-:::
-
-:::
 
 ::: {.notes}
 - Each line traces one electorate's path through ternary space as candidates are eliminated round by round
@@ -497,14 +490,19 @@ detour(dtour_data,
 #| echo: true
 #| code-fold: true
 
-long_df <- aecdop_2025 |>
-  filter(CountNumber == 0, DivisionNm == "Monash")
+sushi_data <- prefio::read_preflib(
+  "00014 - sushi/00014-00000001.soc",
+  from_preflib = TRUE
+)
 
-dop_bar(long_df,
-        items     = PartyAb,
-        value_col = CalculationValue,
-        round_col = "CountNumber",
-        at_round  = 0)
+irv_tbl <- dop_irv(
+  sushi_data,
+  value_type = "percent",
+  preferences_col = preferences,
+  frequency_col = frequency
+)
+
+dop_bar(irv_tbl, items = -c(round, winner), at_round = 1)
 ```
 
 ## Pairwise comparison — `pairwise_heatmap` {.smaller}
@@ -513,13 +511,10 @@ dop_bar(long_df,
 If we pick out 2 random items and look at their relative positions on the ballot, which one would win?
 :::
 
-::: {.panel-tabset}
-
-## Plot
-
 ```{r pairwise-plot}
-#| echo: false
-#| eval: true
+#| echo: true
+#| code-fold: true
+#| fig-align: center
 
 sushi_data <- prefio::read_preflib(
   "00014 - sushi/00014-00000001.soc",
@@ -538,28 +533,6 @@ pairwise_heatmap(pw_result, value = "tcp")
 *Each cell shows the proportion of ballots that preferred row item over column item.*
 
 *Diagonal = 50% (item vs itself); values > 50% indicate the row item is more often preferred.*
-
-## Code
-
-```{r pairwise-code}
-#| echo: true
-#| eval: false
-
-sushi_data <- prefio::read_preflib(
-  "00014 - sushi/00014-00000001.soc",
-  from_preflib = TRUE
-)
-
-pw_result <- pairwise_calculator(
-  sushi_data,
-  preferences_col = preferences,
-  frequency_col   = frequency
-)
-
-pairwise_heatmap(pw_result, value = "tcp")
-```
-
-:::
 
 ## Next steps
 
