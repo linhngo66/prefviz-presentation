@@ -23,7 +23,7 @@ jobs:
           install.packages(c(
             "prefio", "prefviz", "detourr", "tourr",
             "ggplot2", "dplyr", "tidyr", "tibble",
-            "kableExtra", "scales", "ggiraph", "here"
+            "kableExtra", "scales", "ggiraph", "here", "patchwork"
           ))
         shell: Rscript {0}
 
