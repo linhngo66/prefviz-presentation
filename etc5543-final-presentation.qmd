@@ -602,7 +602,7 @@ fn_tbl <- tibble::tribble(
 )
 
 kable(fn_tbl, col.names = c("Function", "Description")) |>
-  kable_styling(font_size = 16, full_width = TRUE) |>
+  kable_styling(font_size = 18, full_width = TRUE) |>
   pack_rows("Ternable object", 1, 4, color = "#1C4F9C", background = "#f0f4ff", bold = FALSE) |>
   pack_rows("ggplot2 extensions for ternary plots", 5, 8, color = "#1C4F9C", background = "#f0f4ff", bold = FALSE) |>
   pack_rows("Election calculators", 9, 10, color = "#1C4F9C", background = "#f0f4ff", bold = FALSE) |>
