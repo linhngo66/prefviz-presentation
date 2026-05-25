@@ -76,7 +76,7 @@ library(ggiraph)
 
 <hr>
 
-<h4> Linh Ngo, Dianne Cook, Damjan Vukcevic </h4>
+<h4> Linh Ngo, supervised by Dianne Cook, Damjan Vukcevic </h4>
 
 ![](images/prefviz-sticker.png){.absolute top=295 left=750 width="30%"}
 
@@ -119,7 +119,7 @@ library(ggiraph)
 
 ::: {.fragment}
 
-**Wide** — one row per voter
+**Wide** - one row per voter
 
 ```{r wide-example}
 wide_ex <- tibble(
@@ -135,7 +135,7 @@ kable(wide_ex) |> kable_styling(font_size = 18, full_width = FALSE)
 :::
 
 ::: {.fragment}
-**Long** — one row per voter–item pair
+**Long** - one row per voter–item pair
 
 ```{r long-example}
 long_ex <- tibble(
@@ -152,7 +152,7 @@ kable(long_ex) |> kable_styling(font_size = 18, full_width = FALSE)
 
 ::: {.column width="50%" .fragment}
 
-**PrefLib** — encodes all items + a lot more metadata
+**PrefLib** - encodes all items + a lot more metadata
 
 ![](images/preflib.png){width="75%"}
 
@@ -180,10 +180,10 @@ prefio::read_preflib(
   kable() |> kable_styling(font_size = 15, full_width = FALSE)
 ```
 
-## How do we compare first preferences across 150 electorates?
+## Compare and constrast a large number of preference sets
 
 ::: {.small-text}
-*First-preference votes for ALP, LNP, and Other — 2025 Australian House of Representatives election*
+*First-preference votes for ALP, LNP, and Other - 2025 Australian House of Representatives election*
 :::
 
 ::: {.columns}
@@ -324,19 +324,19 @@ p2d_scatter_interactive
 
 :::{.column width="50%"}
 
-:::{.fragment fragment-index=1 .code-reveal}
+:::{.fragment fragment-index=2 .code-reveal}
 ```{r}
 #| echo: true
 #| eval: false
 ggplot(
-  input_data |> filter(CountNumber == 0), 
+  get_tern_data2d(tern_2d), 
   aes(x = x1, y = x2)) +
   add_ternary_base() +
 ```
 
 :::
 
-:::{.fragment fragment-index=2 .code-reveal}
+:::{.fragment fragment-index=3 .code-reveal}
 ```{r}
 #| echo: true
 #| eval: false
@@ -348,7 +348,7 @@ ggplot(
 
 :::
 
-:::{.fragment fragment-index=3 .code-reveal}
+:::{.fragment fragment-index=4 .code-reveal}
 ```{r}
 #| echo: true
 #| eval: false
@@ -357,7 +357,7 @@ ggplot(
 ```
 :::
 
-:::{.fragment fragment-index=4 .code-reveal}
+:::{.fragment fragment-index=5 .code-reveal}
 ```{r}
 #| echo: true
 #| eval: false
@@ -370,13 +370,13 @@ ggplot(
 :::{.column width="50%"}
 
 :::{.r-stack}
-![](images/layer1.png){.fragment fragment-index=1}
+![](images/layer1.png){.fragment fragment-index=2}
 
-![](images/layer2.png){.fragment fragment-index=2}
+![](images/layer2.png){.fragment fragment-index=3}
 
-![](images/layer3.png){.fragment fragment-index=3}
+![](images/layer3.png){.fragment fragment-index=4}
 
-![](images/layer4.png){.fragment fragment-index=4}
+![](images/layer4.png){.fragment fragment-index=5}
 :::
 
 :::
@@ -555,6 +555,88 @@ pairwise_heatmap(pw_result, value = "tcp")
 
 - Website refresh for version 0.1.2
 - Submit a software paper to *R Journal*
+
+:::
+
+::::
+
+## 
+
+:::: {.columns}
+
+::: {.column width="55%"}
+
+[Thank you!]{style="font-size: 3em; font-weight: bold; display: block; margin-top: 1.5em;"}
+
+:::
+
+::: {.column width="45%"}
+
+![](images/prefviz-sticker.png){width="90%"}
+
+:::
+
+::::
+
+## Appendix 1: Project structure
+
+![](images/file_structure.png){fig-align="center" width="85%"}
+
+## Appendix 2: Main functions
+
+```{r fn-table}
+fn_tbl <- tibble::tribble(
+  ~Function,                              ~Description,
+  "as_ternable(data, items)",             "Create a ternable object that stores all simplex components",
+  "get_tern_data2d(tern)",       "Extract 2D / HD projected coordinates",
+  "get_tern_edges(tern)",                 "Get simplex edge pairs for tour overlays",
+  "get_tern_labels(tern)",                "Get vertex label strings",
+  "add_ternary_base()",                   "Draw the triangle frame",
+  "geom_ternary_region(...)",             "Fill coloured regions per party",
+  "add_vertex_labels(vertices)",          "Add party labels at corners",
+  "stat_ordered_path(...)",               "Draw preference-flow paths",
+  "dop_irv(data, ...)",                   "Compute IRV rounds from ranked ballots",
+  "pairwise_calculator(data, ...)",       "Compute all pairwise win proportions",
+  "dop_bar(irv_tbl, ..., at_round)",      "Bar chart of preference distribution at a round",
+  "pairwise_heatmap(pw, value)",          "Heatmap of two-candidate preferred margins"
+)
+
+kable(fn_tbl, col.names = c("Function", "Description")) |>
+  kable_styling(font_size = 16, full_width = TRUE) |>
+  pack_rows("Ternable object", 1, 4, color = "#1C4F9C", background = "#f0f4ff", bold = FALSE) |>
+  pack_rows("ggplot2 extensions for ternary plots", 5, 8, color = "#1C4F9C", background = "#f0f4ff", bold = FALSE) |>
+  pack_rows("Election calculators", 9, 10, color = "#1C4F9C", background = "#f0f4ff", bold = FALSE) |>
+  pack_rows("Quick plots", 11, 12, color = "#1C4F9C", background = "#f0f4ff", bold = FALSE)
+```
+
+## Appendix 3: `ternable` object
+
+:::: {.columns}
+
+::: {.column width="55%"}
+
+A `ternable` object contains the data and metadata necessary for ternary plots, including the **vertices, edges, labels** of the simplex, and **coordinates** of all data points.
+
+```{r step2}
+#| echo: true
+#| code-fold: false
+
+tern_2d <- as_ternable(pref25_2d, items = ALP:Other)
+```
+
+::: {.incremental}
+- **`ternary_coords`** - coordinates of all data points
+- **`simplex_vertices`** - coordinates of the 3 corners
+- **`simplex_edges`** - pairs connecting vertices
+- **`vertex_labels`** - party names at each corner
+
+:::
+
+:::
+
+::: {.column width="45%"}
+
+![](images/draw.png)
 
 :::
 
