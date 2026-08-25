@@ -1,0 +1,405 @@
+---
+format:
+  revealjs:
+    embed-resources: true
+    theme: default
+    slide-number: true
+    scrollable: false
+    fontsize: 30px
+    progress: true
+    code-line-numbers: true
+    footer: "[github.com/numbats/prefviz](https://github.com/numbats/prefviz/)"
+    center-title-slide: false
+execute:
+  echo: false
+  warning: false
+  message: false
+  eval: true
+---
+
+```{css}
+/*| include: false */
+
+.reveal h1, .reveal h2, .reveal h3 { text-transform: none; }
+.reveal h1 { font-size: 1.8em; }
+.reveal h2 { font-size: 1.2em; margin-top: 0.3em; }
+.reveal pre { width: 100%; font-size: 0.52em; }
+.reveal code { padding: 2px 6px; background: rgba(0,0,0,0.08); }
+.small-text { font-size: 0.75em; }
+.center-slide { text-align: center; }
+
+.highlight-box {
+  background: #f0f4ff;
+  border-left: 4px solid #1C4F9C;
+  padding: 0.6em 1em;
+  margin-top: 0.5em;
+  border-radius: 4px;
+}
+.scope-box {
+  background: #f8f8f8;
+  border: 1px solid #ddd;
+  padding: 0.5em 1em;
+  border-radius: 4px;
+  margin-top: 0.4em;
+}
+.panel-tabset .nav-link { font-size: 0.85em; }
+
+.code-reveal {
+  position: absolute !important;
+  top: 20% !important;
+  left: 0 !important;
+}
+```
+
+```{r setup}
+#| include: false
+library(here)
+source(here::here("final_presentation_demo.R"))
+
+library(prefio)
+library(prefviz)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(kableExtra)
+library(scales)
+library(ggiraph)
+```
+
+## {data-state="hide-menubar"}
+
+
+<h1> `prefviz` </h1>
+
+<h2> A visualisation toolkit for preferential election data </h2>
+
+<hr>
+
+<h4> Linh Ngo, Dianne Cook, Damjan Vukcevic </h4>
+
+![](../images/prefviz-sticker.png){.absolute top=295 left=750 width="30%"}
+
+## Imagine you are the organiser of MelbURN, and you need to decide which catering to order for your next event...
+
+::: {.column}
+::: {.fragment}
+So you make a list of catering options, and go out to ask every attendee to rank their preference from most to least preferred.
+
+1. Pizza
+2. Spring roll
+3. Sushi
+:::
+
+::: {.fragment}
+After everyone has made their choice, your data looks like this:
+
+```{r}
+#| echo: false
+
+# Define the people and catering options
+people <- c("Alice", "Ben", "Carla", "David", "Ella")
+foods <- c("pizza", "spring roll", "sushi")
+
+# Create the tibble with random rankings for illustration
+set.seed(123)  # for reproducibility
+
+df <- expand.grid(name = people, food_type = foods) %>%
+  group_by(name) %>%
+  mutate(rank = sample(1:3, size = length(foods), replace = FALSE)) %>%
+  ungroup() %>%
+  as_tibble()
+
+df
+```
+
+:::
+
+## You decided to look into people's first choice
+
+::: {..fragment}
+`dop_irv()` does some slight transformation, ...
+
+```{r}
+irv_tbl <- df |>
+  long_preferences(
+    ballot,
+    id_cols = name,
+    item_col = food_type,
+    rank_col = rank
+  ) |>
+  dop_irv(preferences_col = ballot, value_type = "percentage")
+
+irv_tbl |>
+  filter(round == 1) |>
+  select(-round, -winner) |>
+  kable(digits = 2)
+```
+
+:::
+
+::: {.fragment}
+Which `dop_bar()` visualizes directly as a bar chart
+```{r}
+dop_bar(irv_tbl, items = -c(round, winner), at_round = 1)
+```
+
+:::
+
+## Alternatively, you look at pairwise comparisons
+
+If we pick any 2 catering options and see which one people ranked higher on their ballot, who wins?
+
+```{r}
+prefs_tbl <- df |>
+  long_preferences(
+    ballot,
+    id_cols = name,
+    item_col = food_type,
+    rank_col = rank
+  )
+
+pw_result <- pairwise_calculator(prefs_tbl, preferences_col = ballot)
+
+pairwise_heatmap(pw_result, value = "tcp")
+```
+
+*Each cell shows the proportion of ballots that preferred the row option over the column option.*
+
+## But what if you run this poll across every event MelbURN has ever hosted?
+
+I don't know how many events MelbURN has hosted, but assume 150 events 😬😬😬
+
+This is not `prefviz` code, because `prefviz` has a better solution.
+
+```{r}
+#| fig.width: 10
+#| fig-align: center
+
+set.seed(42)
+n_events <- 150
+
+# Generate 150 event compositions (same diverse patterns as 4-event example)
+composition_tbl <- tibble(
+  event = paste0("Event_", 1:n_events),
+  pizza = runif(n_events, 0.05, 0.80),
+  `spring roll` = runif(n_events, 0.05, 0.80),
+  sushi = 1 - pizza - `spring roll`
+) %>%
+  mutate(across(pizza:`spring roll`, ~ pmax(pmin(., 0.90), 0.05))) %>%
+  mutate(sushi = 1 - pizza - `spring roll`) |>
+  filter(sushi > 0, pizza > 0, `spring roll` > 0)
+
+# Same 4-event style plot, now for 150 events
+composition_long <- composition_tbl %>%
+  pivot_longer(-event, names_to = "food", values_to = "pct")
+
+ggplot(composition_long, aes(x = event, y = pct, fill = food)) +
+  geom_col(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)),
+            position = position_stack(vjust = 0.5),
+            color = "white", fontface = "bold", size = 2) +
+  scale_fill_manual(values = c("pizza" = "#E76F51",
+                               "spring roll" = "#588157",
+                               "sushi" = "#457B9D")) +
+  labs(y = "Proportion", title = "Catering Preferences: 150 Events") +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1, size = 3),
+        strip.text = element_text(size = 6))
+```
+
+## Introduce: Ternary plot 🎉🎉🎉
+
+:::: {.columns}
+
+::: {.column width="65%"}
+
+```{r}
+#| fig-align: center
+#| fig-width: 13
+#| fig-height: 10
+
+tern_food <- composition_tbl |>
+  rowwise() |>
+  mutate(top_choice = c("pizza", "spring roll", "sushi")[which.max(c_across(pizza:sushi))]) |>
+  ungroup() |>
+  as_ternable(items = pizza:sushi)
+
+ggplot(get_tern_data2d(tern_food), aes(x = x1, y = x2)) +
+  add_ternary_base() +
+  geom_ternary_region(
+    aes(fill = after_stat(vertex_labels)),
+    vertex_labels = tern_food$vertex_labels,
+    alpha = 0.3, color = NA, show.legend = FALSE
+  ) +
+  geom_point(aes(color = top_choice), alpha = 0.7, size = 4) +
+  add_vertex_labels(tern_food$simplex_vertices) +
+  scale_fill_manual(values = c("pizza" = "#E76F51", "spring roll" = "#588157", "sushi" = "#457B9D")) +
+  scale_color_manual(values = c("pizza" = "#E76F51", "spring roll" = "#588157", "sushi" = "#457B9D"), name = "Top choice") +
+  labs(title = "All 150 events at once") +
+  theme(
+    plot.title = element_text(size = 20, hjust = 0.5),
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 16)
+  )
+```
+
+*The same 150-event data from the last slide, now as a ternary plot — every event's full pizza/spring roll/sushi split is a single point.*
+:::
+
+::: {.column width="35%"}
+
+**How to read this plot?**
+
+::: {.incremental}
+- The edges are the axes, running from 0 to 1
+- Each point represents 1 observation (or stacked bar), and is made up of 3 parts: %pizza, %spring roll, and %sushi
+- If the point sits at one of the vertices, it means 100% of the composition is that option.
+- If the point sits in the center, it means equal compositions of all options (33% each)
+:::
+
+:::
+
+::::
+
+## Applying the same plot to Australian House of Representative election, and make it interactive
+
+Hover to see electorate names and exact vote percentages.
+```{r p2d_interactive}
+#| echo: false
+
+p2d_scatter_interactive
+```
+
+## Everything is ggplot2-based
+
+:::{.columns}
+
+:::{.column width="50%"}
+
+:::{.fragment fragment-index=2 .code-reveal}
+```{r}
+#| echo: true
+#| eval: false
+ggplot(
+  get_tern_data2d(tern_2d), 
+  aes(x = x1, y = x2)) +
+  add_ternary_base() +
+```
+
+:::
+
+:::{.fragment fragment-index=3 .code-reveal}
+```{r}
+#| echo: true
+#| eval: false
+  geom_ternary_region(
+    aes(fill = after_stat(vertex_labels)), 
+    vertex_labels = tern_2d$vertex_labels, 
+    alpha = 0.3, color = NA, show.legend = FALSE) +
+```
+
+:::
+
+:::{.fragment fragment-index=4 .code-reveal}
+```{r}
+#| echo: true
+#| eval: false
+  add_vertex_labels(tern_2d$simplex_vertices) +
+
+```
+:::
+
+:::{.fragment fragment-index=5 .code-reveal}
+```{r}
+#| echo: true
+#| eval: false
+  geom_point(aes(color = true_winner))
+```
+:::
+
+:::
+
+:::{.column width="50%"}
+
+:::{.r-stack}
+![](../images/layer1.png){.fragment fragment-index=2}
+
+![](../images/layer2.png){.fragment fragment-index=3}
+
+![](../images/layer3.png){.fragment fragment-index=4}
+
+![](../images/layer4.png){.fragment fragment-index=5}
+:::
+
+:::
+
+:::
+
+::: {.notes}
+- Each region is labelled by the party dominating that vertex: ALP (left), LNP (right), Other (top)
+- Points near a vertex = strong first-preference vote for that party; central points = split across parties
+- Most electorates cluster in the centre-left (ALP/LNP territory) — very few have a strong Other share
+- Points coloured by the *winning* party, not the leading first-preference party
+- Key observation: electorates in the Other region still end up electing ALP or LNP — but an ALP/LNP first-preference never flips to the other side
+- Question for the audience: how does an electorate with a majority Other first preference end up with an ALP or LNP winner?
+:::
+
+## For a specific electorate, we can see the exact preference distribution in each counting round
+
+```{r p2d_line}
+#| echo: false
+
+p2d_line_interactive
+```
+
+## We also bring it to high dimensions! {.smaller}
+
+::: {.panel-tabset}
+
+## Plot
+
+```{r detourr-plot}
+#| out-height: "450px"
+#| out-width: "100%"
+detour_scatter
+```
+
+## Code
+
+```{r detourr-code}
+#| echo: true
+#| eval: false
+#| code-line-numbers: "1-3|5-6|8-15"
+
+tern_hd <- as_ternable(
+  pref25_hd_all |> filter(CountNumber == 0),
+  items = c(ALP, LNP, GRN, IND, Other)
+)
+
+dtour_data <- get_tern_datahd(tern_hd) |>
+  mutate(Winner = factor(coalesce(Winner, labels), levels = c("ALP", "LNP", "GRN", "IND", "Other")))
+
+detour(
+  dtour_data,
+  tour_aes(projection = x1:x4, colour = Winner, labels = text)
+) |>
+  tour_path(planned_tour(lt), fps = 60) |>
+  show_scatter(
+    axes    = FALSE,
+    palette = detour_colors,
+    edges   = get_tern_edges(tern_hd),
+    size    = 1
+  )
+```
+
+:::
+
+# `prefviz`
+
+::: {.incremental}
+- For preferential data
+- For **any dimensions**
+- Make it interactive and linkable
+:::

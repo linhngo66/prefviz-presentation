@@ -30,6 +30,12 @@ jobs:
       - name: Render presentation
         run: quarto render etc5543-final-presentation.qmd --output-dir _site
 
+      - name: Render MelbURN pitch
+        run: |
+          quarto render melburn/melburn-pitch.qmd
+          mkdir -p _site/melburn
+          cp melburn/melburn-pitch.html _site/melburn/index.html
+
       - name: Copy landing page
         run: cp index.html _site/index.html
 
