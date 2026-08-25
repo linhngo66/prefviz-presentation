@@ -180,7 +180,7 @@ I don't know how many events MelbURN has hosted, but assume 150 events 😬😬�
 This is not `prefviz` code, because `prefviz` has a better solution.
 
 ```{r}
-#| fig.width: 10
+#| fig.width: 6
 #| fig-align: center
 
 set.seed(42)
