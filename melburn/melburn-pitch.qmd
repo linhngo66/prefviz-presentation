@@ -82,7 +82,9 @@ library(ggiraph)
 
 ## Imagine you are the organiser of MelbURN, and you need to decide which catering to order for your next event...
 
-::: {.column}
+:::: {.columns}
+
+::: {.column width="50%"}
 ::: {.fragment}
 So you make a list of catering options, and go out to ask every attendee to rank their preference from most to least preferred.
 
@@ -90,7 +92,9 @@ So you make a list of catering options, and go out to ask every attendee to rank
 2. Spring roll
 3. Sushi
 :::
+:::
 
+::: {.column width="50%"}
 ::: {.fragment}
 After everyone has made their choice, your data looks like this:
 
@@ -114,6 +118,9 @@ df
 ```
 
 :::
+:::
+
+::::
 
 ## You decided to look into people's first choice
 
@@ -217,8 +224,8 @@ ggplot(composition_long, aes(x = event, y = pct, fill = food)) +
 
 ```{r}
 #| fig-align: center
-#| fig-width: 13
-#| fig-height: 10
+#| fig-width: 10
+#| fig-height: 6
 
 tern_food <- composition_tbl |>
   rowwise() |>
